@@ -55,3 +55,30 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
         });
 
     } catch (error) {
+        // --- DETAYLI HATA LOGLAMA ---
+        console.error("--- KRİTİK HATA DETAYI ---");
+        console.error("Mesaj:", error.message);
+        
+        // Render loglarında hatanın nerede olduğunu tam görmek için:
+        if (error.stack) {
+            console.error("Hata Dizini (Stack):", error.stack);
+        }
+
+        // Hata durumunda da geçici dosyayı temizle
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+        
+        res.status(500).send(`Yapay zeka hatası: ${error.message}. Lütfen Render loglarını kontrol edin.`);
+    }
+});
+
+// --- SUNUCU BAŞLATMA ---
+// Uploads klasörü yoksa otomatik oluşturur
+if (!fs.existsSync('uploads')){ 
+    fs.mkdirSync('uploads'); 
+}
+
+app.listen(port, () => {
+    console.log(`Sunucu ${port} portunda ve gemini-2.5-flash modeliyle hazır!`);
+});

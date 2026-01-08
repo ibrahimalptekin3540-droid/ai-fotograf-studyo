@@ -22,7 +22,6 @@ const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 // --- ANA API ENDPOINT'İ ---
 app.post('/api/process', upload.single('image'), async (req, res) => {
     try {
-        // 1. Girdi Kontrolü
         if (!req.file || !req.body.prompt) {
             return res.status(400).send("Dosya veya stil seçimi eksik.");
         }
@@ -32,7 +31,7 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
 
         console.log(`İşlem başladı: Stil -> ${selectedStyle}`);
 
-        // 2. GEMINI 2.5 FLASH İLE GÖRSEL ANALİZİ VE PROMPT HAZIRLAMA
+        // 1. GEMINI 2.5 FLASH İLE GÖRSEL ANALİZİ
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const imagePart = {
             inlineData: {
@@ -49,9 +48,10 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
         const finalPrompt = visionResult.response.text();
         console.log("Üretilen Sanat Komutu:", finalPrompt);
 
-        // 3. HUGGING FACE (SDXL) İLE GÖRSEL DÖNÜŞTÜRME
+        // 2. HUGGING FACE ROUTER (SDXL) İLE GÖRSEL DÖNÜŞTÜRME
+        // URL ADRESİ GÜNCELLENDİ: router.huggingface.co kullanılıyor
         const hfResponse = await fetch(
-            "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
+            "https://router.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0",
             {
                 headers: { 
                     Authorization: `Bearer ${HF_TOKEN}`,
@@ -71,28 +71,27 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
 
         if (!hfResponse.ok) {
             const errorMsg = await hfResponse.text();
-            throw new Error(`Hugging Face Hatası: ${errorMsg}`);
+            throw new Error(`Hugging Face Router Hatası: ${errorMsg}`);
         }
 
         const buffer = await hfResponse.buffer();
         const outputPath = `uploads/edited_${Date.now()}.png`;
         fs.writeFileSync(outputPath, buffer);
 
-        // 4. SONUCU GÖNDER VE TEMİZLİK YAP
+        // 3. SONUCU GÖNDER VE TEMİZLİK YAP
         res.sendFile(path.resolve(outputPath), () => {
             if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
             if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
         });
 
     } catch (error) {
-        console.error("KRİTİK HATA:", error.message);
+        console.error("HATA:", error.message);
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
         res.status(500).send(`Sistem Hatası: ${error.message}`);
     }
 });
 
-// --- SUNUCU BAŞLATMA ---
 if (!fs.existsSync('uploads')){ fs.mkdirSync('uploads'); }
 app.listen(port, () => {
-    console.log(`Uygulama Gemini 2.5-Flash ve HF-SDXL ile ${port} portunda hazır!`);
+    console.log(`Sunucu yeni Hugging Face Router sistemiyle hazır!`);
 });

@@ -24,7 +24,7 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
             return res.status(400).send("Dosya veya talimat eksik.");
         }
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
         // Görseli Base64 formatına çevir
         const imagePart = {

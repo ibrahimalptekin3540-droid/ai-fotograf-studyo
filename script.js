@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
             resultImg.style.display = 'block';
             document.getElementById('download-btn').href = url;
         } catch (err) {
-            alert("Hata oluştu: " + err.message);
+            alert("Hata Detayı: " + err.message + "\nLütfen Render loglarını kontrol edin.");
         } finally {
             loader.style.display = 'none';
         }

@@ -24,7 +24,8 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
             return res.status(400).send("Dosya veya talimat eksik.");
         }
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // En kararlı model ismi olan 'gemini-pro' kullanılıyor
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
 
         // Görseli Base64 formatına çevir
         const imagePart = {
@@ -36,28 +37,41 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
 
         const prompt = req.body.prompt;
 
-        // Gemini'den yanıt al (Analiz ve Düzenleme Talimatı)
+        // Gemini'den yanıt al
         const result = await model.generateContent([prompt, imagePart]);
         const response = await result.response;
         const textResponse = response.text();
 
         console.log("Gemini Yanıtı:", textResponse);
 
-        /* ÖNEMLİ NOT: Gemini API şu an için doğrudan düzenlenmiş resim dosyası 
-           döndürmez. Profesyonel düzenleme için bu aşamada Imagen API veya 
-           Hugging Face modelleri tetiklenir. 
-           Şu an uygulamanızın çalıştığını görmeniz için orijinal dosyayı geri gönderiyoruz.
-        */
-        
+        // İşlem başarılı olduğunda orijinal dosyayı geri gönder (Test amaçlı)
         res.sendFile(path.resolve(req.file.path), () => {
             // İşlem bitince geçici dosyayı sunucudan sil
-            fs.unlinkSync(req.file.path); 
+            if (fs.existsSync(req.file.path)) {
+                fs.unlinkSync(req.file.path); 
+            }
         });
 
     } catch (error) {
-        console.error("Hata:", error);
-        if (req.file) fs.unlinkSync(req.file.path);
-        res.status(500).send("Yapay zeka işlemi sırasında bir hata oluştu.");
+        // --- DETAYLI HATA ANALİZİ ---
+        console.error("--- HATA DETAYI BAŞLANGICI ---");
+        console.error("Mesaj:", error.message);
+        console.error("Stack Trace:", error.stack);
+        
+        // Eğer varsa API yanıt detaylarını yazdır
+        if (error.response) {
+            console.error("API Durum Kodu:", error.response.status);
+            console.error("API Yanıt Verisi:", JSON.stringify(error.response.data));
+        }
+        console.error("--- HATA DETAYI SONU ---");
+
+        // Geçici dosyayı temizle
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+        
+        // Kullanıcıya detaylı hata mesajı gönder
+        res.status(500).send(`Yapay zeka hatası: ${error.message}. Detaylar için Render loglarını kontrol edin.`);
     }
 });
 

@@ -4,81 +4,89 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
+const fetch = require('node-fetch');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// --- ARA KATMANLAR (MIDDLEWARE) ---
 app.use(cors());
-app.use(express.static('.')); // HTML, CSS ve JS dosyalarını sunar
-const upload = multer({ dest: 'uploads/' }); // Yüklenen dosyalar için geçici klasör
+app.use(express.static('.'));
+const upload = multer({ dest: 'uploads/' });
 
-// --- GOOGLE AI KURULUMU ---
+// API Anahtarları (Render Environment Variables kısmından gelir)
 const GEMINI_API_KEY = process.env.GEMINI_KEY;
+const HF_TOKEN = process.env.HF_TOKEN;
+
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // --- ANA API ENDPOINT'İ ---
 app.post('/api/process', upload.single('image'), async (req, res) => {
     try {
-        // 1. Girdi Kontrolü
         if (!req.file || !req.body.prompt) {
-            return res.status(400).send("Hata: Dosya veya talimat (prompt) eksik.");
+            return res.status(400).send("Dosya veya talimat eksik.");
         }
 
-        // 2. Model Tanımlama (Listenizdeki en güncel model)
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const userPrompt = req.body.prompt;
+        const imagePath = req.file.path;
 
-        // 3. Görseli Yapay Zekanın Anlayacağı Formata (Base64) Çevirme
+        console.log("İşlem başlıyor: ", userPrompt);
+
+        // 1. GEMINI ANALİZİ (İsteğe bağlı: Görseli analiz edip prompt'u zenginleştirebilir)
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         const imagePart = {
             inlineData: {
-                data: Buffer.from(fs.readFileSync(req.file.path)).toString("base64"),
+                data: Buffer.from(fs.readFileSync(imagePath)).toString("base64"),
                 mimeType: req.file.mimetype
             }
         };
+        
+        // Gemini'den görsel hakkında kısa bir teknik bilgi alıyoruz (Arka planda çalışır)
+        const visionResult = await model.generateContent(["Describe this image briefly for a style transfer.", imagePart]);
+        const imageDescription = visionResult.response.text();
+        console.log("Gemini Görsel Analizi:", imageDescription);
 
-        const prompt = req.body.prompt;
+        // 2. HUGGING FACE ILE GÖRSEL DÖNÜŞTÜRME
+        // Hazırlanan nihai prompt
+        const finalPrompt = `${userPrompt}, ${imageDescription}, high quality, detailed, masterpiece`;
 
-        // 4. Gemini'ye Gönder ve Yanıt Bekle
-        const result = await model.generateContent([prompt, imagePart]);
-        const response = await result.response;
-        const textResponse = response.text();
-
-        console.log("Gemini Analizi Başarılı:", textResponse);
-
-        // 5. Yanıtı Gönder (Test aşamasında olduğumuz için orijinal resmi geri yolluyoruz)
-        // Bu, sunucu ile yapay zeka arasındaki bağın koptuğunu değil, kurulduğunu kanıtlar.
-        res.sendFile(path.resolve(req.file.path), () => {
-            // İşlem bittiğinde sunucu belleğini yormamak için geçici dosyayı siliyoruz
-            if (fs.existsSync(req.file.path)) {
-                fs.unlinkSync(req.file.path); 
+        const hfResponse = await fetch(
+            "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-refiner-1.0",
+            {
+                headers: { 
+                    Authorization: `Bearer ${HF_TOKEN}`,
+                    "Content-Type": "application/json"
+                },
+                method: "POST",
+                body: JSON.stringify({ 
+                    inputs: finalPrompt,
+                    // Opsiyonel: Buraya orijinal görseli referans olarak eklemek için Image-to-Image modelleri de kullanılabilir
+                }),
             }
+        );
+
+        if (!hfResponse.ok) {
+            const errorData = await hfResponse.text();
+            throw new Error(`Hugging Face Hatası: ${errorData}`);
+        }
+
+        const buffer = await hfResponse.buffer();
+        const outputPath = `uploads/edited_${Date.now()}.png`;
+        
+        fs.writeFileSync(outputPath, buffer);
+
+        // 3. DÜZENLENMİŞ DOSYAYI GÖNDER
+        res.sendFile(path.resolve(outputPath), () => {
+            // Sunucuda yer kaplamaması için dosyaları temizle
+            if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
+            if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
         });
 
     } catch (error) {
-        // --- DETAYLI HATA LOGLAMA ---
-        console.error("--- KRİTİK HATA DETAYI ---");
-        console.error("Mesaj:", error.message);
-        
-        // Render loglarında hatanın nerede olduğunu tam görmek için:
-        if (error.stack) {
-            console.error("Hata Dizini (Stack):", error.stack);
-        }
-
-        // Hata durumunda da geçici dosyayı temizle
-        if (req.file && fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-        }
-        
-        res.status(500).send(`Yapay zeka hatası: ${error.message}. Lütfen Render loglarını kontrol edin.`);
+        console.error("Hata Detayı:", error.message);
+        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+        res.status(500).send("İşlem başarısız: " + error.message);
     }
 });
 
-// --- SUNUCU BAŞLATMA ---
-// Uploads klasörü yoksa otomatik oluşturur
-if (!fs.existsSync('uploads')){ 
-    fs.mkdirSync('uploads'); 
-}
-
-app.listen(port, () => {
-    console.log(`Sunucu ${port} portunda ve gemini-2.5-flash modeliyle hazır!`);
-});
+if (!fs.existsSync('uploads')){ fs.mkdirSync('uploads'); }
+app.listen(port, () => console.log(`Sunucu ${port} portunda hazır!`));

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Photo Studio Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <h1><i class="fa-solid fa-wand-magic-sparkles"></i> AI Photo Studio</h1>
+            <p>Gemini Yapay Zeka Fotoğraf Düzenleyici</p>
+        </header>
+
+        <main>
+            <section class="panel">
+                <div class="drop-zone" id="drop-zone">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <p>Fotoğrafı buraya sürükleyin veya <strong>tıklayın</strong></p>
+                    <input type="file" id="image-input" accept="image/*" hidden>
+                </div>
+                <div id="preview-area" style="display:none; text-align:center; margin-top:15px;">
+                    <img id="source-preview" style="max-width:100%; border-radius:10px; border: 2px solid #6366f1;">
+                </div>
+            </section>
+
+            <section class="panel">
+                <h3><i class="fa-solid fa-sliders"></i> İyileştirme Araçları</h3>
+                <div class="button-group">
+                    <button class="action-btn" data-type="brighten"><i class="fa-solid fa-sun"></i> Aydınlat</button>
+                    <button class="action-btn" data-type="upscale"><i class="fa-solid fa-expand"></i> Çözünürlüğü Arttır</button>
+                </div>
+            </section>
+
+            <section class="panel">
+                <h3><i class="fa-solid fa-palette"></i> Sanatsal Dönüşümler</h3>
+                <div class="style-grid" id="style-grid">
+                    <button class="style-card special" id="bg-master-btn">
+                        <div class="img-box">
+                            <img src="https://picsum.photos/seed/world/200" alt="Arka Plan">
+                            <div class="overlay">Mekan Seç</div>
+                        </div>
+                        <span>Arka Planı Değiştir</span>
+                    </button>
+                </div>
+
+                <div id="bg-menu" class="sub-menu" style="display:none;">
+                    <select id="location-select">
+                        <optgroup label="Favoriler">
+                            <option value="Maldivler sahili">Maldivler Sahili</option>
+                            <option value="Eyfel Kulesi önü">Eyfel Kulesi</option>
+                            <option value="Mısır Piramitleri">Mısır Piramitleri</option>
+                            <option value="New York Times Square">New York</option>
+                        </optgroup>
+                        <optgroup label="Dünya Turu">
+                            <option value="Kapadokya balonlar">Kapadokya</option>
+                            <option value="İsviçre Alpleri">İsviçre Alpleri</option>
+                            <option value="Tokyo Neon Sokaklar">Tokyo</option>
+                            <option value="Venedik Kanalları">Venedik</option>
+                            <option value="Kuzey Işıkları">Kuzey Işıkları</option>
+                            <option value="Roma Koloseumu">Koloseum</option>
+                        </optgroup>
+                        <optgroup label="Egzotik & Bilim Kurgu">
+                            <option value="Mars kızıl yüzeyi">Mars</option>
+                            <option value="Amazon yağmur ormanları">Amazon</option>
+                            <option value="Santorini manzarası">Santorini</option>
+                            <option value="Büyük Kanyon">Büyük Kanyon</option>
+                            <option value="Büyülü eski bir kütüphane">Büyülü Kütüphane</option>
+                        </optgroup>
+                    </select>
+                    <button id="apply-bg" class="primary-btn">Işınla!</button>
+                </div>
+            </section>
+
+            <section class="panel result" id="result-area" style="display:none;">
+                <div id="loader"><i class="fa-solid fa-spinner fa-spin"></i> İşleniyor...</div>
+                <img id="result-img" alt="Sonuç">
+                <a id="download-btn" class="download-btn" download="ai-result.jpg">
+                    <i class="fa-solid fa-download"></i> İndir
+                </a>
+            </section>
+        </main>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

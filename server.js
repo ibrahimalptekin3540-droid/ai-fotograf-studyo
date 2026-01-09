@@ -13,8 +13,9 @@ app.use(cors());
 app.use(express.static('.')); 
 const upload = multer({ dest: 'uploads/' });
 
+// API Anahtarları
 const GEMINI_API_KEY = process.env.GEMINI_KEY;
-const HF_TOKEN = process.env.HF_TOKEN;
+const HF_TOKEN = process.env.HF_TOKEN; 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 app.post('/api/process', upload.single('image'), async (req, res) => {
@@ -26,50 +27,43 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
         const selectedStyle = req.body.prompt;
         const imagePath = req.file.path;
 
-        // 1. GEMINI 2.5 FLASH İLE GÖRSELİ ANALİZ ET
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-        const imageBuffer = fs.readFileSync(imagePath);
-        
+        // 1. GEMINI 2.5/3 FLASH ANALİZİ (Görüntüdeki en zeki modelleriniz)
+        // Gemini 3 Flash, listenizdeki en güncel modeldir
+        const model = genAI.getGenerativeModel({ model: "gemini-3-flash" }); 
         const imagePart = {
             inlineData: {
-                data: imageBuffer.toString("base64"),
+                data: Buffer.from(fs.readFileSync(imagePath)).toString("base64"),
                 mimeType: req.file.mimetype
             }
         };
 
-        const analysisPrompt = `Bu fotoğrafı ${selectedStyle} stiline dönüştüreceğiz. Fotoğraftaki ana objeyi ve pozu koruyarak, bu stile uygun teknik bir İngilizce sanat prompt'u oluştur. Sadece prompt metnini döndür.`;
+        const analysisPrompt = `Analyze this subject and provide a professional prompt to transform it into ${selectedStyle} style. Keep facial features similar. Only return the prompt.`;
         const visionResult = await model.generateContent([analysisPrompt, imagePart]);
         const finalPrompt = visionResult.response.text();
-        console.log("Hazırlanan Prompt:", finalPrompt);
 
-        // 2. HUGGING FACE ROUTER - YENİ URL VE IMAGE-TO-IMAGE METODU
-        // 404 hatasını aşmak için /models/ kısmını kaldırıp en kararlı model olan SD 1.5'i deniyoruz
-        const hfURL = `https://router.huggingface.co/runwayml/stable-diffusion-v1-5`;
-        
+        // 2. HUGGING FACE ROUTER (Qwen Image Edit Modeli)
+        // 2026 Standart URL: /hf-inference/ takısı eklendi
+        const hfModel = "Qwen/Qwen-Image-Edit-2511";
+        const hfURL = `https://router.huggingface.co/hf-inference/models/${hfModel}`;
+
         const hfResponse = await fetch(hfURL, {
             headers: { 
-                Authorization: `Bearer ${HF_TOKEN}`,
-                "Content-Type": "application/json",
-                "x-use-cache": "false"
+                Authorization: `Bearer ${HF_TOKEN}`, // Yeni Fine-grained Token
+                "Content-Type": "application/json"
             },
             method: "POST",
             body: JSON.stringify({
-                inputs: finalPrompt, // Model fotoğrafı base64 olarak da bekleyebilir ancak ücretsiz katmanda en kararlı yol metin+referans mantığıdır
+                inputs: finalPrompt,
                 parameters: {
-                    negative_prompt: "bad quality, blurry, distorted face, extra fingers",
-                    guidance_scale: 7.5
+                    negative_prompt: "blurry, low quality, distorted, bad face",
+                    guidance_scale: 8.5
                 }
             }),
         });
 
-        // Eğer hala 404 verirse, alternatif olarak klasik inference adresini deneyen yedek mekanizma
-        if (hfResponse.status === 404) {
-            throw new Error("Hugging Face seçilen modeli bu router adresinde bulamadı. Lütfen Render Environment kısmındaki HF_TOKEN'ı ve model ismini kontrol edin.");
-        }
-
         if (!hfResponse.ok) {
             const errorMsg = await hfResponse.text();
-            throw new Error(`HF Hatası (${hfResponse.status}): ${errorMsg}`);
+            throw new Error(`HF Router Hatası (${hfResponse.status}): ${errorMsg}`);
         }
 
         const buffer = await hfResponse.buffer();
@@ -82,9 +76,9 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
         });
 
     } catch (error) {
-        console.error("SİSTEM HATASI:", error.message);
+        console.error("HATA:", error.message);
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-        res.status(500).send(`Hata oluştu: ${error.message}`);
+        res.status(500).send(`Sistem Hatası: ${error.message}`);
     }
 });
 

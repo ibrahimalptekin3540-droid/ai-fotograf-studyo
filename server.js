@@ -27,9 +27,9 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
         const selectedStyle = req.body.prompt;
         const imagePath = req.file.path;
 
-        // 1. GEMINI 2.5/3 FLASH ANALİZİ (Görüntüdeki en zeki modelleriniz)
-        // Gemini 3 Flash, listenizdeki en güncel modeldir
-        const model = genAI.getGenerativeModel({ model: "gemini-3-flash" }); 
+        // 1. GEMINI ANALİZİ (Model ismi hatasız hale getirildi)
+        // Listenizde en üstte yer alan çalışan model ismini kullanıyoruz.
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
         const imagePart = {
             inlineData: {
                 data: Buffer.from(fs.readFileSync(imagePath)).toString("base64"),
@@ -37,13 +37,14 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
             }
         };
 
-        const analysisPrompt = `Analyze this subject and provide a professional prompt to transform it into ${selectedStyle} style. Keep facial features similar. Only return the prompt.`;
+        const analysisPrompt = `Analyze this subject and provide a professional prompt to transform it into ${selectedStyle} style. Focus on colors and lighting. Only return the prompt.`;
         const visionResult = await model.generateContent([analysisPrompt, imagePart]);
         const finalPrompt = visionResult.response.text();
 
-        // 2. HUGGING FACE ROUTER (Qwen Image Edit Modeli)
-        // 2026 Standart URL: /hf-inference/ takısı eklendi
-        const hfModel = "Qwen/Qwen-Image-Edit-2511";
+        console.log("Gemini Promptu Hazırladı:", finalPrompt);
+
+        // 2. HUGGING FACE ROUTER (Qwen Modeli)
+        const hfModel = "Qwen/Qwen-Image-Edit-2511"; 
         const hfURL = `https://router.huggingface.co/hf-inference/models/${hfModel}`;
 
         const hfResponse = await fetch(hfURL, {
@@ -63,22 +64,23 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
 
         if (!hfResponse.ok) {
             const errorMsg = await hfResponse.text();
-            throw new Error(`HF Router Hatası (${hfResponse.status}): ${errorMsg}`);
+            throw new Error(`HF Hatası (${hfResponse.status}): ${errorMsg}`);
         }
 
         const buffer = await hfResponse.buffer();
         const outputPath = `uploads/edited_${Date.now()}.png`;
         fs.writeFileSync(outputPath, buffer);
 
+        // 3. SONUCU GÖNDER VE TEMİZLE
         res.sendFile(path.resolve(outputPath), () => {
             if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
             if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
         });
 
     } catch (error) {
-        console.error("HATA:", error.message);
+        console.error("KRİTİK HATA:", error.message);
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-        res.status(500).send(`Sistem Hatası: ${error.message}`);
+        res.status(500).send(`İşlem Başarısız: ${error.message}`);
     }
 });
 

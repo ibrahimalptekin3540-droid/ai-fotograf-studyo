@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.static('.')); 
 const upload = multer({ dest: 'uploads/' });
 
-// API Anahtarları
+// API Anahtarları (Render'daki HF_TOKEN ve GEMINI_KEY isimleriyle uyumlu)
 const GEMINI_API_KEY = process.env.GEMINI_KEY;
 const HF_TOKEN = process.env.HF_TOKEN; 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -27,43 +27,42 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
         const selectedStyle = req.body.prompt;
         const imagePath = req.file.path;
 
-        // 1. GEMINI 2.5 FLASH ANALİZİ (Daha Sıkı Komut)
+        // 1. GEMINI 2.5 FLASH ANALİZİ
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
-        const imageBuffer = fs.readFileSync(imagePath);
         const imagePart = {
             inlineData: {
-                data: imageBuffer.toString("base64"),
+                data: Buffer.from(fs.readFileSync(imagePath)).toString("base64"),
                 mimeType: req.file.mimetype
             }
         };
 
-        // GÜNCELLEME 1: Prompt orijinal yüzleri ve sahneyi korumaya odaklandı
-        const analysisPrompt = `Analyze this image. Generate a detailed artistic prompt to transform the ENTIRE SCENE and ALL PEOPLE into ${selectedStyle} style. 
-        CRITICAL: You MUST maintain the original facial features, expressions, poses, and the number of people (man and woman) from the photo. 
+        // DÜZENLEME: Gemini'ye insanları ve detayları koruması için daha kesin talimat verildi
+        const analysisPrompt = `Analyze this photo in extreme detail. 
+        There are two people: a man and a woman. 
+        Describe their facial features, expressions, hair, and clothing very accurately. 
+        Then, create a highly detailed prompt to transform this exact scene into ${selectedStyle} style. 
+        The prompt MUST mention both people (a man and a woman) and describe them well so they look like the original subjects. 
         Only return the prompt text.`;
-
+        
         const visionResult = await model.generateContent([analysisPrompt, imagePart]);
         const finalPrompt = visionResult.response.text();
         console.log("Gemini Promptu Hazırladı:", finalPrompt);
 
-        // 2. HUGGING FACE ROUTER (FLUX.1-schnell)
+        // 2. HUGGING FACE ROUTER (FLUX.1-schnell) - Ücretsiz ve Hızlı
         const hfModel = "black-forest-labs/FLUX.1-schnell"; 
         const hfURL = `https://router.huggingface.co/hf-inference/models/${hfModel}`;
 
         const hfResponse = await fetch(hfURL, {
             headers: { 
-                Authorization: `Bearer ${HF_TOKEN}`, // Fine-grained Token
+                Authorization: `Bearer ${HF_TOKEN}`, // Yeni Fine-grained Token
                 "Content-Type": "application/json"
             },
             method: "POST",
             body: JSON.stringify({
                 inputs: finalPrompt,
                 parameters: {
-                    num_inference_steps: 6, // Kaliteyi artırmak için adımı biraz yükselttik
-                    guidance_scale: 8.5, // Prompt'a daha sadık kalması için artırdık
-                    // GÜNCELLEME 2: Orijinal fotoğrafa sadakat ayarı (0.1 = çok sadık, 1.0 = çok özgür)
-                    // 0.6 değeri, yüzleri korurken stili uygulamak için ideal bir dengedir.
-                    image_strength: 0.6 
+                    num_inference_steps: 4, // Schnell modelleri için idealdir
+                    guidance_scale: 0.0 // Flux.1-schnell için en stabil değer
                 }
             }),
         });
@@ -77,6 +76,7 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
         const outputPath = `uploads/edited_${Date.now()}.png`;
         fs.writeFileSync(outputPath, buffer);
 
+        // 3. SONUCU GÖNDER VE TEMİZLE
         res.sendFile(path.resolve(outputPath), () => {
             if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
             if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);

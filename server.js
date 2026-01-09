@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.static('.')); 
 const upload = multer({ dest: 'uploads/' });
 
-// API Anahtarları (Render'daki HF_TOKEN ve GEMINI_KEY isimleriyle uyumlu)
+// API Anahtarları
 const GEMINI_API_KEY = process.env.GEMINI_KEY;
 const HF_TOKEN = process.env.HF_TOKEN; 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -27,7 +27,7 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
         const selectedStyle = req.body.prompt;
         const imagePath = req.file.path;
 
-        // 1. GEMINI 2.5 FLASH ANALİZİ
+        // 1. GEMINI 2.5 FLASH ANALİZİ (99% Sadakat Odaklı)
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
         const imagePart = {
             inlineData: {
@@ -36,25 +36,25 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
             }
         };
 
-        // GÜNCELLEME: %85 Benzerlik için adli tıp düzeyinde detaylandırma talimatı
-        const analysisPrompt = `Analyze the two people in this photo with 85% fidelity requirement. 
-        Focus on their EXACT facial structures: bone structure, jawline, eye shape, distance between features, and unique identifiers. 
-        Describe the man and woman as 'specific individual characters' to ensure the AI creates an exact match. 
-        Create a prompt to transform them into ${selectedStyle} style, while explicitly commanding the AI to maintain their 'PHOTOGRAPHIC IDENTITY' and 'HUMAN PROPORTIONS'. 
-        The prompt must be a master-level artistic description that leaves no room for generic faces. 
+        // GÜNCELLEME: %99 Kimlik Koruma ve Arka Plan Değişimi
+        const analysisPrompt = `Analyze the people in this photo for 99% IDENTITY PRESERVATION. 
+        Extract every micro-detail of their faces: specific bone structure, eye shape, lip curvature, skin texture, and exact facial proportions. 
+        Describe these people as 'specific unique individuals' and command the AI to keep their FACES 100% UNCHANGED.
+        Then, apply the ${selectedStyle} style ONLY to the background, lighting, and clothing texture.
+        The resulting prompt must force the AI to keep the human faces photorealistic and identical to the original photo, while the rest of the image adopts the ${selectedStyle} aesthetic. 
         Only return the prompt text.`;
         
         const visionResult = await model.generateContent([analysisPrompt, imagePart]);
         const finalPrompt = visionResult.response.text();
-        console.log("Gemini Yüksek Sadakatli Promptu Hazırladı:", finalPrompt);
+        console.log("Gemini %99 Benzerlik Komutunu Hazırladı:", finalPrompt);
 
-        // 2. HUGGING FACE ROUTER (FLUX.1-schnell) - Mevcut çalışan yapı
+        // 2. HUGGING FACE ROUTER (FLUX.1-schnell)
         const hfModel = "black-forest-labs/FLUX.1-schnell"; 
         const hfURL = `https://router.huggingface.co/hf-inference/models/${hfModel}`;
 
         const hfResponse = await fetch(hfURL, {
             headers: { 
-                Authorization: `Bearer ${HF_TOKEN}`, // Çalışan Fine-grained Token
+                Authorization: `Bearer ${HF_TOKEN}`,
                 "Content-Type": "application/json"
             },
             method: "POST",

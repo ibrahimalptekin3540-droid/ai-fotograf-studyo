@@ -1,7 +1,7 @@
 {
   "name": "ai-fotograf-studyo",
-  "version": "1.0.0",
-  "description": "AI Fotoğraf Düzenleme Stüdyosu - Gemini 2.5 & HF SDXL",
+  "version": "1.0.1",
+  "description": "AI Fotoğraf Düzenleme Stüdyosu - Gemini 2.5 & FLUX.1",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

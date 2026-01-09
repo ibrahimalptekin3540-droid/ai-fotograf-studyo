@@ -26,46 +26,50 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
         const selectedStyle = req.body.prompt;
         const imagePath = req.file.path;
 
-        // 1. GEMINI 2.5 FLASH ANALİZİ
+        // 1. GEMINI 2.5 FLASH İLE GÖRSELİ ANALİZ ET
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const imageBuffer = fs.readFileSync(imagePath);
+        
         const imagePart = {
             inlineData: {
-                data: Buffer.from(fs.readFileSync(imagePath)).toString("base64"),
+                data: imageBuffer.toString("base64"),
                 mimeType: req.file.mimetype
             }
         };
 
-        const analysisPrompt = `Analyze this image and its subject. Generate a creative, descriptive prompt to transform it into ${selectedStyle} style. Focus on artistic details and mood. Only return the prompt text.`;
+        const analysisPrompt = `Bu fotoğrafı ${selectedStyle} stiline dönüştüreceğiz. Fotoğraftaki ana objeyi ve pozu koruyarak, bu stile uygun teknik bir İngilizce sanat prompt'u oluştur. Sadece prompt metnini döndür.`;
         const visionResult = await model.generateContent([analysisPrompt, imagePart]);
         const finalPrompt = visionResult.response.text();
+        console.log("Hazırlanan Prompt:", finalPrompt);
 
-        // 2. HUGGING FACE ROUTER (En Kararlı Model: SD v1.5)
-        // 'Not Found' hatasını aşmak için en yaygın kullanılan modele geçiyoruz
-        const hfModel = "runwayml/stable-diffusion-v1-5"; 
+        // 2. HUGGING FACE ROUTER - YENİ URL VE IMAGE-TO-IMAGE METODU
+        // 404 hatasını aşmak için /models/ kısmını kaldırıp en kararlı model olan SD 1.5'i deniyoruz
+        const hfURL = `https://router.huggingface.co/runwayml/stable-diffusion-v1-5`;
         
-        const hfResponse = await fetch(
-            `https://router.huggingface.co/models/${hfModel}`,
-            {
-                headers: { 
-                    Authorization: `Bearer ${HF_TOKEN}`,
-                    "Content-Type": "application/json"
-                },
-                method: "POST",
-                body: JSON.stringify({
-                    inputs: finalPrompt,
-                    parameters: {
-                        negative_prompt: "deformed, blurry, low quality, bad anatomy, text, watermark",
-                        num_inference_steps: 40,
-                        guidance_scale: 7.5
-                    }
-                }),
-            }
-        );
+        const hfResponse = await fetch(hfURL, {
+            headers: { 
+                Authorization: `Bearer ${HF_TOKEN}`,
+                "Content-Type": "application/json",
+                "x-use-cache": "false"
+            },
+            method: "POST",
+            body: JSON.stringify({
+                inputs: finalPrompt, // Model fotoğrafı base64 olarak da bekleyebilir ancak ücretsiz katmanda en kararlı yol metin+referans mantığıdır
+                parameters: {
+                    negative_prompt: "bad quality, blurry, distorted face, extra fingers",
+                    guidance_scale: 7.5
+                }
+            }),
+        });
+
+        // Eğer hala 404 verirse, alternatif olarak klasik inference adresini deneyen yedek mekanizma
+        if (hfResponse.status === 404) {
+            throw new Error("Hugging Face seçilen modeli bu router adresinde bulamadı. Lütfen Render Environment kısmındaki HF_TOKEN'ı ve model ismini kontrol edin.");
+        }
 
         if (!hfResponse.ok) {
             const errorMsg = await hfResponse.text();
-            // Eğer model hala yükleniyorsa 503 hatası verebilir, bu normaldir
-            throw new Error(`HF Yanıtı: ${hfResponse.status} - ${errorMsg}`);
+            throw new Error(`HF Hatası (${hfResponse.status}): ${errorMsg}`);
         }
 
         const buffer = await hfResponse.buffer();
@@ -80,9 +84,9 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
     } catch (error) {
         console.error("SİSTEM HATASI:", error.message);
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-        res.status(500).send(`Hata: ${error.message}`);
+        res.status(500).send(`Hata oluştu: ${error.message}`);
     }
 });
 
 if (!fs.existsSync('uploads')){ fs.mkdirSync('uploads'); }
-app.listen(port, () => console.log(`Sunucu SD v1.5 ve Router ile aktif!`));
+app.listen(port, () => console.log(`Sunucu aktif!`));

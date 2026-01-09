@@ -36,33 +36,33 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
             }
         };
 
-        // DÜZENLEME: Gemini'ye insanları ve detayları koruması için daha kesin talimat verildi
-        const analysisPrompt = `Analyze this photo in extreme detail. 
-        There are two people: a man and a woman. 
-        Describe their facial features, expressions, hair, and clothing very accurately. 
-        Then, create a highly detailed prompt to transform this exact scene into ${selectedStyle} style. 
-        The prompt MUST mention both people (a man and a woman) and describe them well so they look like the original subjects. 
+        // GÜNCELLEME: %85 Benzerlik için adli tıp düzeyinde detaylandırma talimatı
+        const analysisPrompt = `Analyze the two people in this photo with 85% fidelity requirement. 
+        Focus on their EXACT facial structures: bone structure, jawline, eye shape, distance between features, and unique identifiers. 
+        Describe the man and woman as 'specific individual characters' to ensure the AI creates an exact match. 
+        Create a prompt to transform them into ${selectedStyle} style, while explicitly commanding the AI to maintain their 'PHOTOGRAPHIC IDENTITY' and 'HUMAN PROPORTIONS'. 
+        The prompt must be a master-level artistic description that leaves no room for generic faces. 
         Only return the prompt text.`;
         
         const visionResult = await model.generateContent([analysisPrompt, imagePart]);
         const finalPrompt = visionResult.response.text();
-        console.log("Gemini Promptu Hazırladı:", finalPrompt);
+        console.log("Gemini Yüksek Sadakatli Promptu Hazırladı:", finalPrompt);
 
-        // 2. HUGGING FACE ROUTER (FLUX.1-schnell) - Ücretsiz ve Hızlı
+        // 2. HUGGING FACE ROUTER (FLUX.1-schnell) - Mevcut çalışan yapı
         const hfModel = "black-forest-labs/FLUX.1-schnell"; 
         const hfURL = `https://router.huggingface.co/hf-inference/models/${hfModel}`;
 
         const hfResponse = await fetch(hfURL, {
             headers: { 
-                Authorization: `Bearer ${HF_TOKEN}`, // Yeni Fine-grained Token
+                Authorization: `Bearer ${HF_TOKEN}`, // Çalışan Fine-grained Token
                 "Content-Type": "application/json"
             },
             method: "POST",
             body: JSON.stringify({
                 inputs: finalPrompt,
                 parameters: {
-                    num_inference_steps: 4, // Schnell modelleri için idealdir
-                    guidance_scale: 0.0 // Flux.1-schnell için en stabil değer
+                    num_inference_steps: 4, 
+                    guidance_scale: 0.0 
                 }
             }),
         });

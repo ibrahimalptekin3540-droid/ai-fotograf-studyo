@@ -13,6 +13,7 @@ app.use(cors());
 app.use(express.static('.')); 
 const upload = multer({ dest: 'uploads/' });
 
+// API Anahtarları
 const GEMINI_API_KEY = process.env.GEMINI_KEY;
 const HF_TOKEN = process.env.HF_TOKEN; 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -27,7 +28,7 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
         const imagePath = req.file.path;
         const imageBuffer = fs.readFileSync(imagePath);
 
-        // 1. GEMINI ANALİZİ (Görseli Anlatma)
+        // 1. GEMINI 2.5 FLASH ANALİZİ
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
         const imagePart = {
             inlineData: {
@@ -36,15 +37,15 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
             }
         };
 
-        const analysisPrompt = `Analyze this photo. Describe the environment and style elements needed to turn it into ${selectedStyle}. 
-        CRITICAL: Do not describe the faces deeply, as we will use the original pixels for 99% similarity. 
-        Focus only on the ${selectedStyle} aesthetic. Only return the prompt text.`;
+        // Yüzleri korumak için Gemini'ye sadece ortamı tarif etmesini söylüyoruz
+        const analysisPrompt = `Analyze this photo. Describe ONLY the background and lighting needed to turn the scene into ${selectedStyle}. 
+        CRITICAL: Do not describe the people, as we will keep their exact faces from the original pixels. 
+        Only return the prompt text.`;
         
         const visionResult = await model.generateContent([analysisPrompt, imagePart]);
         const finalPrompt = visionResult.response.text();
 
-        // 2. HUGGING FACE IMAGE-TO-IMAGE CALL (SDXL)
-        // SDXL, orijinal görseli baz alarak üzerine stil ekleme konusunda en başarılı ücretsiz modeldir.
+        // 2. HUGGING FACE IMAGE-TO-IMAGE (SDXL)
         const hfModel = "stabilityai/stable-diffusion-xl-base-1.0"; 
         const hfURL = `https://router.huggingface.co/hf-inference/models/${hfModel}`;
 
@@ -55,13 +56,15 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
             },
             method: "POST",
             body: JSON.stringify({
-                // Image-to-Image için görseli base64 olarak gönderiyoruz
-                inputs: imageBuffer.toString("base64"), 
+                // DÜZELTME: Görsel ve komut tek bir 'inputs' objesi içinde birleştirildi
+                // Bu yapı 'multiple values for prompt' hatasını kesin olarak çözer.
+                inputs: {
+                    image: imageBuffer.toString("base64"),
+                    prompt: finalPrompt
+                },
                 parameters: {
-                    prompt: finalPrompt,
-                    negative_prompt: "deformed, blurry, changed faces, different people",
-                    // STRENGTH: %99 benzerlik için bu değeri çok düşük (0.1 - 0.25) tutuyoruz
-                    // 0.20 değeri; orijinal piksellerin %80'ini korur, %20 yeni stil ekler.
+                    negative_prompt: "deformed, blurry, changed face, different person",
+                    // %99 benzerlik için gücü çok düşük tutuyoruz (0.15 - 0.25)
                     strength: 0.20, 
                     guidance_scale: 12.0
                 }
@@ -77,6 +80,7 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
         const outputPath = `uploads/edited_${Date.now()}.png`;
         fs.writeFileSync(outputPath, buffer);
 
+        // 3. SONUCU GÖNDER VE TEMİZLE
         res.sendFile(path.resolve(outputPath), () => {
             if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
             if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);

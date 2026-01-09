@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.static('.')); 
 const upload = multer({ dest: 'uploads/' });
 
-// API Anahtarları
+// API Anahtarları (Render'daki HF_TOKEN ve GEMINI_KEY isimleriyle uyumlu)
 const GEMINI_API_KEY = process.env.GEMINI_KEY;
 const HF_TOKEN = process.env.HF_TOKEN; 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -27,8 +27,7 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
         const selectedStyle = req.body.prompt;
         const imagePath = req.file.path;
 
-        // 1. GEMINI ANALİZİ (Model ismi hatasız hale getirildi)
-        // Listenizde en üstte yer alan çalışan model ismini kullanıyoruz.
+        // 1. GEMINI 2.5 FLASH ANALİZİ
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
         const imagePart = {
             inlineData: {
@@ -37,14 +36,13 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
             }
         };
 
-        const analysisPrompt = `Analyze this subject and provide a professional prompt to transform it into ${selectedStyle} style. Focus on colors and lighting. Only return the prompt.`;
+        const analysisPrompt = `Analyze this image and provide a highly detailed artistic prompt to transform it into ${selectedStyle} style. Maintain the original pose. Only return the prompt text.`;
         const visionResult = await model.generateContent([analysisPrompt, imagePart]);
         const finalPrompt = visionResult.response.text();
-
         console.log("Gemini Promptu Hazırladı:", finalPrompt);
 
-        // 2. HUGGING FACE ROUTER (Qwen Modeli)
-        const hfModel = "Qwen/Qwen-Image-Edit-2511"; 
+        // 2. HUGGING FACE ROUTER (FLUX.1-schnell) - Ücretsiz ve Hızlı
+        const hfModel = "black-forest-labs/FLUX.1-schnell"; 
         const hfURL = `https://router.huggingface.co/hf-inference/models/${hfModel}`;
 
         const hfResponse = await fetch(hfURL, {
@@ -56,15 +54,15 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
             body: JSON.stringify({
                 inputs: finalPrompt,
                 parameters: {
-                    negative_prompt: "blurry, low quality, distorted, bad face",
-                    guidance_scale: 8.5
+                    num_inference_steps: 4, // Schnell modelleri için idealdir
+                    guidance_scale: 0.0
                 }
             }),
         });
 
         if (!hfResponse.ok) {
             const errorMsg = await hfResponse.text();
-            throw new Error(`HF Hatası (${hfResponse.status}): ${errorMsg}`);
+            throw new Error(`HF Router Hatası (${hfResponse.status}): ${errorMsg}`);
         }
 
         const buffer = await hfResponse.buffer();

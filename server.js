@@ -19,80 +19,71 @@ const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 app.post('/api/process', upload.single('image'), async (req, res) => {
     try {
-        if (!req.file || !req.body.prompt) return res.status(400).send("Dosya veya stil eksik.");
+        if (!req.file || !req.body.prompt) return res.status(400).send("Veri eksik.");
 
         const selectedStyle = req.body.prompt.toLowerCase();
         const imagePath = req.file.path;
-        const imageBuffer = fs.readFileSync(imagePath);
-        const base64Image = imageBuffer.toString("base64");
+        const base64Image = fs.readFileSync(imagePath).toString("base64");
 
-        // 1. MODEL VE SAĞLAYICI (PROVIDER) HARİTASI
-        // Gönderdiğiniz kod snippet'larına göre konfigüre edildi
-        let modelConfig = {
-            model: "Qwen/Qwen-Image-Edit-2511",
-            provider: "fal-ai", // Varsayılan en güçlü sağlayıcı
-            type: "image-to-image"
-        };
-
-        if (selectedStyle.includes("anime") || selectedStyle.includes("ghibli")) {
-            modelConfig = { model: "autoweeb/Qwen-Image-Edit-2509-Photo-to-Anime", provider: "wavespeed" };
-        } else if (selectedStyle.includes("lego") || selectedStyle.includes("cyber") || selectedStyle.includes("pixar")) {
-            modelConfig = { model: "black-forest-labs/FLUX.1-Kontext-dev", provider: "fal-ai" };
-        } else if (selectedStyle.includes("chibi") || selectedStyle.includes("kukla")) {
-            modelConfig = { model: "rsshekhawat/Qwen-Edit-3DChibi-LoRA", provider: "wavespeed" };
-        } else if (selectedStyle.includes("karakalem") || selectedStyle.includes("yağlı")) {
-            modelConfig = { model: "tlennon-ie/qwen-edit-skin", provider: "wavespeed" };
-        } else if (selectedStyle.includes("tamir") || selectedStyle.includes("restore") || selectedStyle.includes("sinematik")) {
-            modelConfig = { model: "prithivMLmods/Photo-Restore-i2i", provider: "fal-ai" };
-        } else if (selectedStyle.includes("arka plan") || selectedStyle.includes("kurumsal")) {
-            modelConfig = { model: "lovis93/next-scene-qwen-image-lora-2509", provider: "wavespeed" };
-        }
-
-        // 2. GEMINI ANALİZİ (%99 BENZERLİK TALİMATI)
+        // 1. GEMINI ANALİZİ (%99 Yüz Sadakati)
         const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
-        const analysisPrompt = `Analysis: Style ${selectedStyle}. 
+        const analysisPrompt = `Target Style: ${selectedStyle}. 
         Constraint: Keep people's identity 99% identical. Only change environment and texture. 
         Only return the prompt text.`;
         
         const visionResult = await geminiModel.generateContent([analysisPrompt, {
-            inlineData: { data: imageBuffer.toString("base64"), mimeType: req.file.mimetype }
+            inlineData: { data: base64Image, mimeType: req.file.mimetype }
         }]);
         const finalPrompt = visionResult.response.text();
-        console.log(`Model: ${modelConfig.model} | Provider: ${modelConfig.provider} | Talimat: ${finalPrompt}`);
 
-        // 3. HUGGING FACE API ÇAĞRISI (Kod Örneklerinize Göre)
-        const hfURL = `https://api-inference.huggingface.co/models/${modelConfig.model}`;
-        
-        // PAYLOAD: Gönderdiğiniz 'parameters' yapısına tam uyum
-        const payload = {
-            inputs: base64Image,
-            provider: modelConfig.provider,
-            parameters: { 
-                prompt: finalPrompt,
-                strength: 0.25 // Sadakat için düşük tutuldu
-            }
-        };
+        // 2. ÇOK KADEMELİ MODEL DENEME LİSTESİ
+        // Birinci model hata verirse sıradakine geçer.
+        let tryList = [];
 
-        const hfResponse = await fetch(hfURL, {
-            headers: { Authorization: `Bearer ${HF_TOKEN}`, "Content-Type": "application/json" },
-            method: "POST",
-            body: JSON.stringify(payload),
-        });
+        if (selectedStyle.includes("anime") || selectedStyle.includes("ghibli")) {
+            tryList = [
+                { model: "autoweeb/Qwen-Image-Edit-2509-Photo-to-Anime", provider: "fal-ai" },
+                { model: "Qwen/Qwen-Image-Edit", provider: "hf-inference" }
+            ];
+        } else if (selectedStyle.includes("lego") || selectedStyle.includes("cyber") || selectedStyle.includes("pixar")) {
+            tryList = [
+                { model: "black-forest-labs/FLUX.1-schnell", provider: "fal-ai" },
+                { model: "stabilityai/stable-diffusion-xl-base-1.0", provider: "replicate" }
+            ];
+        } else {
+            // Varsayılan Akış: Önce en güncel, sonra en kararlı ana model
+            tryList = [
+                { model: "Qwen/Qwen-Image-Edit-2511", provider: "fal-ai" },
+                { model: "Qwen/Qwen-Image-Edit", provider: "hf-inference" }
+            ];
+        }
 
-        // 410 VEYA KREDİ HATASI DURUMUNDA GÜVENLİ YEDEK
-        if (!hfResponse.ok) {
-            console.warn(`Provider ${modelConfig.provider} hata verdi (${hfResponse.status}). Yedek Qwen kanalına geçiliyor...`);
-            const fallbackPayload = { inputs: finalPrompt, image: base64Image };
-            const fallbackURL = "https://api-inference.huggingface.co/models/Qwen/Qwen-Image-Edit-2511";
-            var finalResponse = await fetch(fallbackURL, {
+        // 3. AKILLI FETCH DÖNGÜSÜ (410 ve Meşgul Hatası Çözümü)
+        let finalResponse = null;
+        for (const attempt of tryList) {
+            console.log(`Deneniyor: ${attempt.model} (${attempt.provider})`);
+            
+            const payload = {
+                inputs: base64Image,
+                provider: attempt.provider,
+                parameters: { prompt: finalPrompt, strength: 0.25 }
+            };
+
+            const response = await fetch(`https://api-inference.huggingface.co/models/${attempt.model}`, {
                 headers: { Authorization: `Bearer ${HF_TOKEN}`, "Content-Type": "application/json" },
                 method: "POST",
-                body: JSON.stringify(fallbackPayload),
+                body: JSON.stringify(payload),
             });
-            if (!finalResponse.ok) throw new Error("Tüm kanallar meşgul.");
-        } else {
-            var finalResponse = hfResponse;
+
+            if (response.ok) {
+                finalResponse = response;
+                break; // Başarılıysa döngüden çık
+            } else {
+                console.warn(`${attempt.model} hata verdi (${response.status}). Sırada...`);
+            }
         }
+
+        if (!finalResponse) throw new Error("Üzgünüz, tüm yapay zeka kanalları şu an çok yoğun veya servis dışı.");
 
         const buffer = await finalResponse.buffer();
         const outputPath = `uploads/edited_${Date.now()}.png`;
@@ -105,10 +96,9 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
 
     } catch (error) {
         console.error("KRİTİK HATA:", error.message);
-        if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-        res.status(500).send(`Sistem Hatası: ${error.message}`);
+        res.status(500).send(`İşlem Başarısız: ${error.message}`);
     }
 });
 
 if (!fs.existsSync('uploads')){ fs.mkdirSync('uploads'); }
-app.listen(port, () => console.log(`Hatasız 20 Stil Aktif!`));
+app.listen(port, () => console.log(`Hatasız 20 Stil Sunucusu Aktif!`));

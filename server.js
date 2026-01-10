@@ -28,66 +28,61 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
         const imageBuffer = fs.readFileSync(imagePath);
         const base64Image = imageBuffer.toString("base64");
 
-        // 1. GÜNCEL VE AKTİF MODEL HAVUZU (410 Hatasını Önlemek İçin En Yeni Sürümler)
-        // Not: Modellerin en güncel 'warm' sürümleri seçildi.
-        let hfModel = "Qwen/Qwen2.5-VL-7B-Instruct"; // Genel ve en güçlü ana model
-        let modelType = "qwen";
+        // 1. STİL-MODEL EŞLEŞTİRME (En Kararlı Modeller Seçildi)
+        let hfModel = "Qwen/Qwen-Image-Edit-2511"; // Ana Güvenli Model
+        let modelCategory = "qwen";
 
         if (selectedStyle.includes("anime") || selectedStyle.includes("ghibli")) {
             hfModel = "autoweeb/Qwen-Image-Edit-2509-Photo-to-Anime";
         } else if (selectedStyle.includes("lego") || selectedStyle.includes("cyberpunk") || selectedStyle.includes("pixar")) {
-            hfModel = "black-forest-labs/FLUX.1-schnell"; // FLUX her zaman stabildir.
-            modelType = "flux";
+            hfModel = "black-forest-labs/FLUX.1-schnell"; // En yüksek uptime
+            modelCategory = "flux";
         } else if (selectedStyle.includes("karakalem") || selectedStyle.includes("eskiz")) {
             hfModel = "tlennon-ie/qwen-edit-skin";
-        } else if (selectedStyle.includes("tamir") || selectedStyle.includes("restore") || selectedStyle.includes("aydınlat")) {
-            hfModel = "Qwen/Qwen-Image-Edit-2511"; // Resmî kararlı sürüm
+        } else if (selectedStyle.includes("tamir") || selectedStyle.includes("restore")) {
+            hfModel = "prithivMLmods/Photo-Restore-i2i";
         }
 
         // 2. GEMINI ANALİZİ
         const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
-        const analysisPrompt = `Analyze photo. Style: ${selectedStyle}. 
-        Action: Keep people 99% identical. Modify background/lighting to ${selectedStyle}. 
-        Return only the prompt.`;
+        const analysisPrompt = `Target Style: ${selectedStyle}. 
+        Instruction: Keep people 99% identical. Modify background and light to ${selectedStyle}. 
+        Return ONLY the instruction text.`;
         
         const visionResult = await geminiModel.generateContent([analysisPrompt, {
             inlineData: { data: base64Image, mimeType: req.file.mimetype }
         }]);
         const finalPrompt = visionResult.response.text();
 
-        // 3. AKILLI FETCH SİSTEMİ (Retry & Fallback)
-        async function fetchFromHF(model, payload) {
+        // 3. HUGGING FACE ÇAĞRISI (Gelişmiş Hata Yönetimi)
+        async function tryHuggingFace(model, category, prompt, image) {
             const url = `https://api-inference.huggingface.co/models/${model}`;
-            const response = await fetch(url, {
+            const payload = (category === "qwen") 
+                ? { inputs: prompt, image: image } 
+                : { inputs: image, parameters: { prompt: prompt, strength: 0.3 } };
+
+            return await fetch(url, {
                 headers: { Authorization: `Bearer ${HF_TOKEN}`, "Content-Type": "application/json" },
                 method: "POST",
                 body: JSON.stringify(payload),
             });
-            return response;
         }
 
-        let payload = (modelType === "qwen") 
-            ? { inputs: finalPrompt, image: base64Image } 
-            : { inputs: base64Image, parameters: { prompt: finalPrompt, strength: 0.35 } };
+        let hfResponse = await tryHuggingFace(hfModel, modelCategory, finalPrompt, base64Image);
 
-        let hfResponse = await fetchFromHF(hfModel, payload);
-
-        // EĞER 410 VEYA 404 ALIRSAK, ANA MODELLE DEVAM ET (ULTRA FALLBACK)
+        // FALLBACK: Eğer 404/500 veya 503 (Yükleniyor) hatası gelirse
         if (!hfResponse.ok) {
-            console.warn(`${hfModel} hata (${hfResponse.status}) verdi, ana modele geçiliyor...`);
-            // En kararlı ana model: Qwen-Image-Edit-2511
-            hfResponse = await fetchFromHF("Qwen/Qwen-Image-Edit-2511", { inputs: finalPrompt, image: base64Image });
+            console.warn(`${hfModel} hata verdi (${hfResponse.status}). Yedek modele geçiliyor...`);
+            // Yedek: Her zaman aktif olan Qwen Image Edit Base
+            hfResponse = await tryHuggingFace("Qwen/Qwen-Image-Edit-2511", "qwen", finalPrompt, base64Image);
             
             if (!hfResponse.ok) {
-                // Eğer o da hata verirse son çare Stable Diffusion XL
-                hfResponse = await fetchFromHF("stabilityai/stable-diffusion-xl-base-1.0", { 
-                    inputs: base64Image, 
-                    parameters: { prompt: finalPrompt, strength: 0.25 } 
-                });
+                // Son çare: Stable Diffusion XL
+                hfResponse = await tryHuggingFace("stabilityai/stable-diffusion-xl-base-1.0", "flux", finalPrompt, base64Image);
             }
         }
 
-        if (!hfResponse.ok) throw new Error(`Hugging Face servis dışı (${hfResponse.status})`);
+        if (!hfResponse.ok) throw new Error(`Modeller yanıt vermiyor. Durum: ${hfResponse.status}`);
 
         const buffer = await hfResponse.buffer();
         const outputPath = `uploads/edited_${Date.now()}.png`;
@@ -101,7 +96,7 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
     } catch (error) {
         console.error("KRİTİK HATA:", error.message);
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-        res.status(500).send(`Sistem Hatası: ${error.message}`);
+        res.status(500).send(`İşlem Başarısız: ${error.message}`);
     }
 });
 

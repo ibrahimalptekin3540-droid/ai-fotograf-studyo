@@ -1,7 +1,7 @@
 {
   "name": "ai-fotograf-studyo",
-  "version": "1.0.2",
-  "description": "AI Fotoğraf Düzenleme Stüdyosu - Gemini 2.5 & Qwen Pro",
+  "version": "1.0.3",
+  "description": "AI Fotoğraf Düzenleme Stüdyosu - 20 Stil & Yüksek Sadakat",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

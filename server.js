@@ -19,51 +19,59 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY);
 
 app.post('/api/process', upload.single('image'), async (req, res) => {
     try {
-        if (!req.file || !req.body.prompt) return res.status(400).send("Veri eksik.");
+        if (!req.file || !req.body.prompt) return res.status(400).send("Dosya eksik.");
 
-        const selectedStyle = req.body.prompt;
-        const imagePath = req.file.path;
-        const imageBuffer = fs.readFileSync(imagePath);
+        const imageBuffer = fs.readFileSync(req.file.path);
         const base64Image = `data:${req.file.mimetype};base64,${imageBuffer.toString("base64")}`;
 
-        // 1. GEMINI ANALİZİ (%99 Yüz Sadakati + İnce Kenar Çizgisi Talimatı)
+        // 1. GEMINI ANALİZİ (%99 Yüz Sadakati)
         const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
-        const analysisPrompt = `Analysis: ${selectedStyle}. 
-        CRITICAL: Maintain the person's identity and facial features 99% identical. 
-        INSTRUCTION: Add a very thin, aesthetic outline around subjects for easy cutting. 
-        Return ONLY the optimized prompt text.`;
-        
+        const analysisPrompt = `Target Style: ${req.body.prompt}. Command: Maintain identity 99% identical. Return only prompt text.`;
         const visionResult = await geminiModel.generateContent([
             analysisPrompt, 
             { inlineData: { data: imageBuffer.toString("base64"), mimeType: req.file.mimetype } }
         ]);
         const finalPrompt = visionResult.response.text();
 
-        // 2. FAL.AI ÇAĞRISI (Qwen-Image-Edit Uzmanlığı)
+        // 2. FAL.AI ÇAĞRISI
+        console.log("Fal.ai işliyor...");
         const result = await fal.subscribe("fal-ai/qwen-image-edit", {
             input: {
                 image_url: base64Image,
                 prompt: finalPrompt,
-                strength: 0.25 // Sadakat için kritik değer
+                strength: 0.25
             }
         });
 
-        // 3. SONUCU ALMA VE İSTEMCİYE GÖNDERME
-        const response = await fetch(result.image.url);
+        // 3. KRİTİK DÜZELTME: URL'yi her iki formatta da ara
+        let editedImageUrl = null;
+        if (result.image && result.image.url) {
+            editedImageUrl = result.image.url;
+        } else if (result.images && result.images[0] && result.images[0].url) {
+            editedImageUrl = result.images[0].url;
+        }
+
+        if (!editedImageUrl) {
+            console.error("API Yanıtı Beklenmedik:", result);
+            throw new Error("Görsel URL'si bulunamadı.");
+        }
+
+        // 4. GÖRSELİ İNDİR VE GÖNDER
+        const response = await fetch(editedImageUrl);
         const buffer = await response.buffer();
-        const outputPath = `uploads/final_${Date.now()}.png`;
+        const outputPath = `uploads/res_${Date.now()}.png`;
         fs.writeFileSync(outputPath, buffer);
 
         res.sendFile(path.resolve(outputPath), () => {
-            if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
+            if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
             if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
         });
 
     } catch (error) {
-        console.error("FAL API HATASI:", error.message);
-        res.status(500).send(`İşlem Başarısız: ${error.message}`);
+        console.error("HATA DETAYI:", error.message);
+        res.status(500).send(`Sistem Hatası: ${error.message}`);
     }
 });
 
 if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
-app.listen(port, () => console.log(`Fal.ai Destekli Stüdyo 1.1 Yayında!`));
+app.listen(port, () => console.log(`Profesyonel Stüdyo Yayında!`));

@@ -22,7 +22,7 @@
                     <input type="file" id="image-input" accept="image/*" hidden>
                 </div>
                 <div id="preview-area" style="display:none; text-align:center; margin-top:15px;">
-                    <img id="source-preview" style="max-width:100%; border-radius:10px; border: 2px solid #6366f1;">
+                    <img id="source-preview" alt="Önizleme">
                 </div>
             </section>
 
@@ -37,7 +37,6 @@
             <section class="panel">
                 <h3><i class="fa-solid fa-palette"></i> Sanatsal Stüdyo</h3>
                 <div class="style-grid" id="style-grid">
-                    
                     <button class="style-card special" id="bg-master-btn">
                         <div class="img-box">
                             <img src="https://picsum.photos/seed/world/200" alt="Arka Plan">
@@ -46,105 +45,42 @@
                         <span>Arka Planı Değiştir</span>
                     </button>
 
-                    <button class="style-card" data-style="3D Pixar">
-                        <div class="img-box"><img src="https://picsum.photos/seed/pixar/200" alt="Pixar"></div>
-                        <span>3D Pixar</span>
-                    </button>
-                    <button class="style-card" data-style="Yağlı Boya">
-                        <div class="img-box"><img src="https://picsum.photos/seed/oil/200" alt="Yağlı Boya"></div>
-                        <span>Yağlı Boya</span>
-                    </button>
-                    <button class="style-card" data-style="70'ler Anime">
-                        <div class="img-box"><img src="https://picsum.photos/seed/anime/200" alt="Anime"></div>
-                        <span>70'ler Anime</span>
-                    </button>
-                    <button class="style-card" data-style="Muppet Kukla">
-                        <div class="img-box"><img src="https://picsum.photos/seed/muppet/200" alt="Muppet"></div>
-                        <span>Muppet Kukla</span>
-                    </button>
-                    <button class="style-card" data-style="Cyberpunk">
-                        <div class="img-box"><img src="https://picsum.photos/seed/cyber/200" alt="Cyberpunk"></div>
-                        <span>Cyberpunk</span>
-                    </button>
-                    <button class="style-card" data-style="Kurumsal">
-                        <div class="img-box"><img src="https://picsum.photos/seed/corp/200" alt="Kurumsal"></div>
-                        <span>Kurumsal</span>
-                    </button>
-                    <button class="style-card" data-style="Ghibli">
-                        <div class="img-box"><img src="https://picsum.photos/seed/ghibli/200" alt="Ghibli"></div>
-                        <span>Ghibli</span>
-                    </button>
-                    <button class="style-card" data-style="Heykel">
-                        <div class="img-box"><img src="https://picsum.photos/seed/sculp/200" alt="Heykel"></div>
-                        <span>Heykel</span>
-                    </button>
-                    <button class="style-card" data-style="LEGO">
-                        <div class="img-box"><img src="https://picsum.photos/seed/lego/200" alt="LEGO"></div>
-                        <span>LEGO</span>
-                    </button>
-                    <button class="style-card" data-style="90'lar Film">
-                        <div class="img-box"><img src="https://picsum.photos/seed/90s/200" alt="90s"></div>
-                        <span>90'lar Film</span>
-                    </button>
-                    <button class="style-card" data-style="Karakalem">
-                        <div class="img-box"><img src="https://picsum.photos/seed/sketch/200" alt="Karakalem"></div>
-                        <span>Karakalem</span>
-                    </button>
-                    <button class="style-card" data-style="Steampunk">
-                        <div class="img-box"><img src="https://picsum.photos/seed/steam/200" alt="Steampunk"></div>
-                        <span>Steampunk</span>
-                    </button>
-                    <button class="style-card" data-style="Çift Pozlama">
-                        <div class="img-box"><img src="https://picsum.photos/seed/double/200" alt="Çift Pozlama"></div>
-                        <span>Çift Pozlama</span>
-                    </button>
-                    <button class="style-card" data-style="Süper Kahraman">
-                        <div class="img-box"><img src="https://picsum.photos/seed/hero/200" alt="Kahraman"></div>
-                        <span>Süper Kahraman</span>
-                    </button>
-                    <button class="style-card" data-style="3D Chibi">
-                        <div class="img-box"><img src="https://picsum.photos/seed/chibi/200" alt="Chibi"></div>
-                        <span>3D Chibi</span>
-                    </button>
-                    <button class="style-card" data-style="Eskiz Defteri">
-                        <div class="img-box"><img src="https://picsum.photos/seed/book/200" alt="Eskiz"></div>
-                        <span>Eskiz Defteri</span>
-                    </button>
-                    <button class="style-card" data-style="Gece Işığı">
-                        <div class="img-box"><img src="https://picsum.photos/seed/night/200" alt="Gece"></div>
-                        <span>Gece Işığı</span>
-                    </button>
-                    <button class="style-card" data-style="Sinematik Portre">
-                        <div class="img-box"><img src="https://picsum.photos/seed/cinema/200" alt="Sinematik"></div>
-                        <span>Sinematik Portre</span>
-                    </button>
-
+                    <div class="style-card" data-style="3D Pixar"><div class="img-box"><img src="https://picsum.photos/seed/pixar/200"></div><span>3D Pixar</span></div>
+                    <div class="style-card" data-style="Yağlı Boya"><div class="img-box"><img src="https://picsum.photos/seed/oil/200"></div><span>Yağlı Boya</span></div>
+                    <div class="style-card" data-style="70'ler Anime"><div class="img-box"><img src="https://picsum.photos/seed/anime/200"></div><span>70'ler Anime</span></div>
+                    <div class="style-card" data-style="Muppet Kukla"><div class="img-box"><img src="https://picsum.photos/seed/muppet/200"></div><span>Muppet Kukla</span></div>
+                    <div class="style-card" data-style="Cyberpunk"><div class="img-box"><img src="https://picsum.photos/seed/cyber/200"></div><span>Cyberpunk</span></div>
+                    <div class="style-card" data-style="Kurumsal"><div class="img-box"><img src="https://picsum.photos/seed/corp/200"></div><span>Kurumsal</span></div>
+                    <div class="style-card" data-style="Ghibli"><div class="img-box"><img src="https://picsum.photos/seed/ghibli/200"></div><span>Ghibli</span></div>
+                    <div class="style-card" data-style="Heykel"><div class="img-box"><img src="https://picsum.photos/seed/sculp/200"></div><span>Heykel</span></div>
+                    <div class="style-card" data-style="LEGO"><div class="img-box"><img src="https://picsum.photos/seed/lego/200"></div><span>LEGO</span></div>
+                    <div class="style-card" data-style="90'lar Film"><div class="img-box"><img src="https://picsum.photos/seed/90s/200"></div><span>90'lar Film</span></div>
+                    <div class="style-card" data-style="Karakalem"><div class="img-box"><img src="https://picsum.photos/seed/sketch/200"></div><span>Karakalem</span></div>
+                    <div class="style-card" data-style="Steampunk"><div class="img-box"><img src="https://picsum.photos/seed/steam/200"></div><span>Steampunk</span></div>
+                    <div class="style-card" data-style="Çift Pozlama"><div class="img-box"><img src="https://picsum.photos/seed/double/200"></div><span>Çift Pozlama</span></div>
+                    <div class="style-card" data-style="Süper Kahraman"><div class="img-box"><img src="https://picsum.photos/seed/hero/200"></div><span>Süper Kahraman</span></div>
+                    <div class="style-card" data-style="3D Chibi"><div class="img-box"><img src="https://picsum.photos/seed/chibi/200"></div><span>3D Chibi</span></div>
+                    <div class="style-card" data-style="Eskiz Defteri"><div class="img-box"><img src="https://picsum.photos/seed/book/200"></div><span>Eskiz Defteri</span></div>
+                    <div class="style-card" data-style="Gece Işığı"><div class="img-box"><img src="https://picsum.photos/seed/night/200"></div><span>Gece Işığı</span></div>
+                    <div class="style-card" data-style="Sinematik Portre"><div class="img-box"><img src="https://picsum.photos/seed/cinema/200"></div><span>Sinematik Portre</span></div>
+                    <div class="style-card" data-style="Mürekkep Çizim"><div class="img-box"><img src="https://picsum.photos/seed/ink/200"></div><span>Mürekkep Çizim</span></div>
                 </div>
 
                 <div id="bg-menu" class="sub-menu" style="display:none;">
                     <select id="location-select">
-                        <optgroup label="Dünya Turu">
-                            <option value="Maldivler sahili">Maldivler Sahili</option>
-                            <option value="Tokyo Neon Sokaklar">Tokyo Neon</option>
-                            <option value="Kapadokya balonlar">Kapadokya</option>
-                            <option value="İsviçre Alpleri">İsviçre Alpleri</option>
-                        </optgroup>
-                        <optgroup label="Bilim Kurgu">
-                            <option value="Mars kızıl yüzeyi">Mars Yüzeyi</option>
-                            <option value="Cyberpunk fütüristik şehir">Cyberpunk Şehir</option>
-                            <option value="Büyülü kütüphane">Büyülü Kütüphane</option>
-                        </optgroup>
+                        <option value="Maldivler sahili">Maldivler</option>
+                        <option value="Tokyo Neon Sokaklar">Tokyo</option>
+                        <option value="Mars kızıl yüzeyi">Mars</option>
+                        <option value="Büyülü kütüphane">Büyülü Kütüphane</option>
                     </select>
                     <button id="apply-bg" class="primary-btn">Işınla!</button>
                 </div>
             </section>
 
             <section class="panel result" id="result-area" style="display:none;">
-                <div id="loader"><i class="fa-solid fa-spinner fa-spin"></i> ✨ Sanat eserin hazırlanıyor...</div>
+                <div id="loader"><i class="fa-solid fa-spinner fa-spin"></i> ✨ Hazırlanıyor...</div>
                 <img id="result-img" alt="Sonuç">
-                <a id="download-btn" class="download-btn" download="ai-result.jpg">
-                    <i class="fa-solid fa-download"></i> İndir
-                </a>
+                <a id="download-btn" class="download-btn" download="ai-result.jpg"><i class="fa-solid fa-download"></i> İndir</a>
             </section>
         </main>
     </div>

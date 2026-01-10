@@ -8,77 +8,69 @@ const cors = require('cors');
 
 const app = express();
 const port = process.env.PORT || 3000;
-
 app.use(cors());
 app.use(express.static('.')); 
 const upload = multer({ dest: 'uploads/' });
 
-// API Anahtarları (Render'dan çekilir)
+// API Anahtarları (Render Environment Variables üzerinden okunur)
 const hf = new HfInference(process.env.HF_TOKEN);
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY);
 
 app.post('/api/process', upload.single('image'), async (req, res) => {
     try {
-        if (!req.file || !req.body.prompt) return res.status(400).send("Eksik veri.");
+        if (!req.file || !req.body.prompt) return res.status(400).send("Dosya veya stil seçimi eksik.");
 
-        const selectedStyle = req.body.prompt.toLowerCase();
+        const selectedStyle = req.body.prompt;
         const imagePath = req.file.path;
         const imageBuffer = fs.readFileSync(imagePath);
-
-        // 1. GEMINI 2.5 ANALİZİ (Yüz Hatlarını %99 Koruma Talimatı)
-        const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
-        const analysisPrompt = `Analysis: Target Style is ${selectedStyle}. 
-        CRITICAL: Create an instruction to transform this photo. 
-        MANDATORY: Command the AI to keep the people's facial features and identity 99% identical. 
-        Modify only the environment, lighting, and textures. Return ONLY the prompt text.`;
         
-        const visionResult = await geminiModel.generateContent([analysisPrompt, {
-            inlineData: { data: imageBuffer.toString("base64"), mimeType: req.file.mimetype }
-        }]);
+        // KRİTİK DÜZELTME: "arrayBuffer is not a function" hatasını bitiren dönüşüm
+        const uint8Array = new Uint8Array(imageBuffer);
+
+        // 1. GEMINI ANALİZİ (%99 Yüz Sadakati Talimatı)
+        const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
+        const analysisPrompt = `Target Style: ${selectedStyle}. 
+        Instruction: Maintain the people's facial features and identity 99% identical. 
+        Only transform the background and style textures. Return only the prompt text.`;
+        
+        const visionResult = await geminiModel.generateContent([
+            analysisPrompt, 
+            { inlineData: { data: imageBuffer.toString("base64"), mimeType: req.file.mimetype } }
+        ]);
         const finalPrompt = visionResult.response.text();
-        console.log(`Seçilen Stil: ${selectedStyle} | Üretilen Komut: ${finalPrompt}`);
 
-        // 2. AKILLI MODEL SEÇİCİ
-        let modelId = "Qwen/Qwen-Image-Edit"; // Varsayılan en sağlam model
+        // 2. MODEL SEÇİCİ
+        let modelId = "Qwen/Qwen-Image-Edit"; // Ana ücretsiz model
+        if (selectedStyle.includes("anime")) modelId = "autoweeb/Qwen-Image-Edit-2509-Photo-to-Anime";
+        else if (selectedStyle.includes("lego") || selectedStyle.includes("pixar")) modelId = "black-forest-labs/FLUX.1-schnell";
 
-        if (selectedStyle.includes("anime") || selectedStyle.includes("ghibli")) {
-            modelId = "autoweeb/Qwen-Image-Edit-2509-Photo-to-Anime";
-        } else if (selectedStyle.includes("lego") || selectedStyle.includes("cyber") || selectedStyle.includes("pixar")) {
-            modelId = "black-forest-labs/FLUX.1-schnell";
-        } else if (selectedStyle.includes("tamir") || selectedStyle.includes("restore")) {
-            modelId = "prithivMLmods/Photo-Restore-i2i";
-        }
-
-        // 3. HUGGING FACE ÇAĞRISI (Provider: "Auto" Modu)
-        // Bu yapı 410 ve kredi hatalarını otomatik yönetir.
+        // 3. HUGGING FACE ÇAĞRISI (Ücretsiz Kanalı Zorla)
         const resultBlob = await hf.imageToImage({
             model: modelId,
-            inputs: imageBuffer,
-            provider: "auto", // Akıllı yönlendirme devrede
+            inputs: uint8Array, // Saf veri gönderimi
+            provider: "hf-inference", // fal-ai kredi engelini ve 410 hatasını aşar
             parameters: { 
                 prompt: finalPrompt,
-                strength: 0.25, // %99 benzerlik için ideal değer
-                negative_prompt: "deformed face, changed identity, blurry, low quality"
+                strength: 0.25 // Orijinal yüzü koruma hassasiyeti
             }
         });
 
-        // Blob verisini Buffer'a çevirip kaydediyoruz
-        const buffer = Buffer.from(await resultBlob.arrayBuffer());
+        // Blob -> Buffer Dönüşümü ve Kaydetme
+        const outputBuffer = Buffer.from(await resultBlob.arrayBuffer());
         const outputPath = `uploads/res_${Date.now()}.png`;
-        fs.writeFileSync(outputPath, buffer);
+        fs.writeFileSync(outputPath, outputBuffer);
 
-        // 4. SONUCU GÖNDER VE TEMİZLE
         res.sendFile(path.resolve(outputPath), () => {
             if (fs.existsSync(imagePath)) fs.unlinkSync(imagePath);
             if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
         });
 
     } catch (error) {
-        console.error("SİSTEM HATASI:", error.message);
+        console.error("KRİTİK HATA:", error.message);
         if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-        res.status(500).send(`İşlem başarısız: ${error.message}`);
+        res.status(500).send(`İşlem Başarısız: ${error.message}`);
     }
 });
 
 if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
-app.listen(port, () => console.log(`20 Stilli AI Studio Pro Aktif!`));
+app.listen(port, () => console.log(`Sanat Stüdyosu Yayında!`));

@@ -12,17 +12,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const applyBg = document.getElementById('apply-bg');
     const locationSelect = document.getElementById('location-select');
 
-    // Dosya Seçme
+    let currentResultUrl = null; // Bellek yönetimi için
+
+    // Dosya Seçme İşlemleri
     dropZone.onclick = () => imageInput.click();
     imageInput.onchange = (e) => handleFile(e.target.files[0]);
 
     function handleFile(file) {
-        if (!file || !file.type.startsWith('image/')) return;
+        if (!file || !file.type.startsWith('image/')) {
+            return alert("Lütfen geçerli bir görsel dosyası seçin.");
+        }
+        
         const reader = new FileReader();
         reader.onload = (e) => {
             sourcePreview.src = e.target.result;
             previewArea.style.display = 'block';
             dropZone.style.display = 'none';
+            // Yeni fotoğraf yüklendiğinde eski sonuç alanını gizle
+            resultArea.style.display = 'none';
         };
         reader.readAsDataURL(file);
     }
@@ -30,7 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ARKA PLAN MENÜSÜNÜ AÇMA (Düzeltme)
     bgMasterBtn.onclick = () => {
         bgMenu.style.display = bgMenu.style.display === 'none' ? 'block' : 'none';
-        bgMenu.scrollIntoView({ behavior: 'smooth' });
+        if (bgMenu.style.display === 'block') {
+            bgMenu.scrollIntoView({ behavior: 'smooth' });
+        }
     };
 
     // Arka Plan Uygulama
@@ -39,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
         processImage(location);
     };
 
-    // Standart Stil Kartları
+    // Standart Stil Kartları (24 Stil)
     document.querySelectorAll('.style-card:not(.special)').forEach(card => {
         card.onclick = () => processImage(card.getAttribute('data-style'));
     });
@@ -48,10 +57,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const file = imageInput.files[0];
         if (!file) return alert("Önce fotoğraf yükleyin!");
 
+        // UI Hazırlığı
         resultArea.style.display = 'block';
         loader.style.display = 'block';
         resultImg.style.display = 'none';
         downloadBtn.style.display = 'none';
+        resultArea.scrollIntoView({ behavior: 'smooth' });
 
         const formData = new FormData();
         formData.append('image', file);
@@ -59,17 +70,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const response = await fetch('/api/process', { method: 'POST', body: formData });
-            if (!response.ok) throw new Error('Sunucu Hatası');
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Sunucu Hatası');
+            }
+
+            // BELLEK YÖNETİMİ: Eski Blob URL'sini temizle
+            if (currentResultUrl) {
+                URL.revokeObjectURL(currentResultUrl);
+            }
 
             const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            resultImg.src = url;
+            currentResultUrl = URL.createObjectURL(blob);
+            
+            resultImg.src = currentResultUrl;
             resultImg.style.display = 'block';
-            downloadBtn.href = url;
+            
+            downloadBtn.href = currentResultUrl;
+            // İndirme ismini stile göre özelleştir
+            downloadBtn.download = `ai-studio-${styleName.replace(/\s+/g, '-').toLowerCase()}.png`;
             downloadBtn.style.display = 'inline-flex';
+
         } catch (err) {
-            alert(err.message);
+            console.error("İşlem Hatası:", err);
+            alert("Üzgünüz, bir hata oluştu: " + err.message);
+            resultArea.style.display = 'none';
         } finally {
+            // ALTIN KURAL 3: Loader her koşulda gizlenir
             loader.style.display = 'none';
         }
     }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Photo Studio Pro - 2026</title>
+    <title>AI Photo Studio Pro - 24 Stil</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -11,35 +11,27 @@
     <div class="app-container">
         <header>
             <h1><i class="fa-solid fa-wand-magic-sparkles"></i> AI Photo Studio</h1>
-            <p>Gemini 2.5 & Fal.ai Yüksek Sadakatli Fotoğraf Düzenleyici</p>
+            <p>24 Farklı Stil & Yüksek Sadakatli Düzenleme</p>
         </header>
 
         <main>
             <section class="panel">
                 <div class="drop-zone" id="drop-zone">
                     <i class="fa-solid fa-cloud-arrow-up"></i>
-                    <p>Fotoğrafı buraya sürükleyin veya <strong>tıklayın</strong></p>
+                    <p>Fotoğrafı sürükleyin veya <strong>tıklayın</strong></p>
                     <input type="file" id="image-input" accept="image/*" hidden>
                 </div>
                 <div id="preview-area" style="display:none; text-align:center; margin-top:15px;">
-                    <img id="source-preview" alt="Önizleme" style="max-width:100%; max-height:300px; border-radius:10px; border: 2px solid #6366f1;">
+                    <img id="source-preview" alt="Önizleme" style="max-width:100%; max-height:300px; border-radius:10px;">
                 </div>
             </section>
 
             <section class="panel">
-                <h3><i class="fa-solid fa-sliders"></i> İyileştirme Araçları</h3>
-                <div class="button-group">
-                    <button class="action-btn" data-type="Aydınlat"><i class="fa-solid fa-sun"></i> Aydınlat</button>
-                    <button class="action-btn" data-type="Fotoğraf Tamiri"><i class="fa-solid fa-wand-sparkles"></i> Restorasyon</button>
-                </div>
-            </section>
-
-            <section class="panel">
-                <h3><i class="fa-solid fa-palette"></i> Sanatsal Stüdyo</h3>
-                <div class="style-grid" id="style-grid">
+                <h3><i class="fa-solid fa-palette"></i> Sanatsal Stüdyo (24 Stil)</h3>
+                <div class="style-grid">
                     <button class="style-card special" id="bg-master-btn">
                         <div class="img-box">
-                            <img src="https://picsum.photos/seed/world/200" alt="Arka Plan">
+                            <img src="https://picsum.photos/seed/bg/200" alt="Arka Plan">
                             <div class="overlay">Mekan Seç</div>
                         </div>
                         <span>Arka Planı Değiştir</span>
@@ -50,28 +42,34 @@
                     <div class="style-card" data-style="70'ler Anime"><div class="img-box"><img src="https://picsum.photos/seed/anime/200"></div><span>70'ler Anime</span></div>
                     <div class="style-card" data-style="Muppet Kukla"><div class="img-box"><img src="https://picsum.photos/seed/muppet/200"></div><span>Muppet Kukla</span></div>
                     <div class="style-card" data-style="Cyberpunk"><div class="img-box"><img src="https://picsum.photos/seed/cyber/200"></div><span>Cyberpunk</span></div>
-                    <div class="style-card" data-style="Kurumsal"><div class="img-box"><img src="https://picsum.photos/seed/corp/200"></div><span>Kurumsal</span></div>
                     <div class="style-card" data-style="Ghibli"><div class="img-box"><img src="https://picsum.photos/seed/ghibli/200"></div><span>Ghibli</span></div>
-                    <div class="style-card" data-style="Heykel"><div class="img-box"><img src="https://picsum.photos/seed/sculp/200"></div><span>Heykel</span></div>
-                    <div class="style-card" data-style="LEGO"><div class="img-box"><img src="https://picsum.photos/seed/lego/200"></div><span>LEGO</span></div>
-                    <div class="style-card" data-style="90'lar Film"><div class="img-box"><img src="https://picsum.photos/seed/90s/200"></div><span>90'lar Film</span></div>
+                    <div class="style-card" data-style="LEGO Bricks"><div class="img-box"><img src="https://picsum.photos/seed/lego/200"></div><span>LEGO</span></div>
                     <div class="style-card" data-style="Karakalem"><div class="img-box"><img src="https://picsum.photos/seed/sketch/200"></div><span>Karakalem</span></div>
-                    <div class="style-card" data-style="Steampunk"><div class="img-box"><img src="https://picsum.photos/seed/steam/200"></div><span>Steampunk</span></div>
-                    <div class="style-card" data-style="Çift Pozlama"><div class="img-box"><img src="https://picsum.photos/seed/double/200"></div><span>Çift Pozlama</span></div>
-                    <div class="style-card" data-style="Süper Kahraman"><div class="img-box"><img src="https://picsum.photos/seed/hero/200"></div><span>Süper Kahraman</span></div>
+                    <div class="style-card" data-style="Süper Kahraman"><div class="img-box"><img src="https://picsum.photos/seed/hero/200"></div><span>Marvel Tarzı</span></div>
                     <div class="style-card" data-style="3D Chibi"><div class="img-box"><img src="https://picsum.photos/seed/chibi/200"></div><span>3D Chibi</span></div>
-                    <div class="style-card" data-style="Eskiz Defteri"><div class="img-box"><img src="https://picsum.photos/seed/book/200"></div><span>Eskiz Defteri</span></div>
-                    <div class="style-card" data-style="Gece Işığı"><div class="img-box"><img src="https://picsum.photos/seed/night/200"></div><span>Gece Işığı</span></div>
-                    <div class="style-card" data-style="Sinematik Portre"><div class="img-box"><img src="https://picsum.photos/seed/cinema/200"></div><span>Sinematik Portre</span></div>
-                    <div class="style-card" data-style="Mürekkep Çizim"><div class="img-box"><img src="https://picsum.photos/seed/ink/200"></div><span>Mürekkep Çizim</span></div>
+                    <div class="style-card" data-style="Eskiz Defteri"><div class="img-box"><img src="https://picsum.photos/seed/book/200"></div><span>Eskiz</span></div>
+                    <div class="style-card" data-style="Sinematik Portre"><div class="img-box"><img src="https://picsum.photos/seed/cinema/200"></div><span>Sinematik</span></div>
+                    <div class="style-card" data-style="Mürekkep Çizim"><div class="img-box"><img src="https://picsum.photos/seed/ink/200"></div><span>Mürekkep</span></div>
+                    <div class="style-card" data-style="Kurumsal"><div class="img-box"><img src="https://picsum.photos/seed/corp/200"></div><span>LinkedIn</span></div>
+                    <div class="style-card" data-style="Steampunk"><div class="img-box"><img src="https://picsum.photos/seed/steam/200"></div><span>Steampunk</span></div>
+                    <div class="style-card" data-style="90'lar Film"><div class="img-box"><img src="https://picsum.photos/seed/90s/200"></div><span>Nostaljik</span></div>
+                    <div class="style-card" data-style="Heykel"><div class="img-box"><img src="https://picsum.photos/seed/sculp/200"></div><span>Mermer Heykel</span></div>
+                    <div class="style-card" data-style="Çift Pozlama"><div class="img-box"><img src="https://picsum.photos/seed/double/200"></div><span>Çift Pozlama</span></div>
+                    <div class="style-card" data-style="Gece Işığı"><div class="img-box"><img src="https://picsum.photos/seed/night/200"></div><span>Neon Gece</span></div>
+
+                    <div class="style-card" data-style="Retro Comic Book 1950s"><div class="img-box"><img src="https://picsum.photos/seed/comic/200"></div><span>Retro Komik</span></div>
+                    <div class="style-card" data-style="Watercolor Painting Art"><div class="img-box"><img src="https://picsum.photos/seed/water/200"></div><span>Sulu Boya</span></div>
+                    <div class="style-card" data-style="Papercut Craft Art 3D"><div class="img-box"><img src="https://picsum.photos/seed/paper/200"></div><span>Kağıt Kesme</span></div>
+                    <div class="style-card" data-style="80s Synthwave Retro"><div class="img-box"><img src="https://picsum.photos/seed/80s/200"></div><span>Synthwave</span></div>
                 </div>
 
                 <div id="bg-menu" class="sub-menu" style="display:none;">
                     <select id="location-select">
-                        <option value="Maldivler sahili">Maldivler</option>
-                        <option value="Tokyo Neon Sokaklar">Tokyo</option>
-                        <option value="Mars kızıl yüzeyi">Mars</option>
-                        <option value="Büyülü kütüphane">Büyülü Kütüphane</option>
+                        <option value="Maldivler kumsalında">Maldivler</option>
+                        <option value="Tokyo neon caddelerinde">Tokyo</option>
+                        <option value="Mars kızıl gezegeninde">Mars</option>
+                        <option value="Eski bir kütüphanede">Kütüphane</option>
+                        <option value="Karlı bir dağ zirvesinde">Karlı Dağlar</option>
                     </select>
                     <button id="apply-bg" class="primary-btn">Işınla!</button>
                 </div>

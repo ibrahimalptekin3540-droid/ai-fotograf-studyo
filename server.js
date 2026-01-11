@@ -27,18 +27,18 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
         const imageBase64 = req.file.buffer.toString("base64");
         const base64Image = `data:${req.file.mimetype};base64,${imageBase64}`;
 
-        // 1. GEMINI ANALİZİ (Geliştirilmiş Çoklu Yüz Sadakati)
+        // 1. GEMINI ANALİZİ (Ultra-Gerçekçi & Doğal Doku Odaklı)
         const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
         const analysisPrompt = `Target Style: ${req.body.prompt}. 
         
-        STRICT IDENTITY INSTRUCTIONS: 
-        1. MULTI-FACE IDENTITY: Maintain the facial features, bone structure, and identity of EVERY person in the photo 99% identical. Do not alter eyes, nose, or mouth shapes. Each individual must be instantly recognizable as their original self.
-        2. SKIN & RETOUCH: Apply professional skin smoothing and remove blemishes, but do NOT change the skin tone or facial shadows that define the person's identity. 
-        3. STYLE APPLICATION: Apply the ${req.body.prompt} style only to the textures, clothing, and overall atmosphere without distorting facial geometry.
-        4. BACKGROUND & LIGHTING: Use 8k realistic lighting and bokeh for backgrounds. Ensure the shadows on faces match the new background lighting while maintaining 99% similarity. 
-        5. OUTLINE: Add a very thin, precise aesthetic outline around all subjects.
+        STRICT REALISM & IDENTITY INSTRUCTIONS: 
+        1. PHOTOREALISTIC IDENTITY: Maintain the facial geometry and features of EVERY person 99% identical. Use "hyper-realistic skin textures" and "natural skin pores" to avoid a plastic look.
+        2. NATURAL RETOUCH: Remove blemishes and marks BUT preserve natural skin folds, subtle expressions, and fine lines that define the person's character. Ensure "subsurface scattering" on skin for realistic lighting.
+        3. LIGHTING MASTER: Match the original face shadows with the new environment using "global illumination" and "ray-traced lighting." Every person must appear integrated into the 3D space with correct "ambient occlusion."
+        4. IMAGE QUALITY: Output must feel like a "raw 8k photograph" taken with a high-end prime lens. Focus on "sharp focus on eyes" and "natural depth of field." 
+        5. STYLE BLENDING: Incorporate ${req.body.prompt} elements subtly into the surroundings while keeping the subjects in ultra-high fidelity.
 
-        Return ONLY the optimized prompt text.`;
+        Return ONLY the optimized, technical prompt text.`;
 
         const visionResult = await geminiModel.generateContent([
             analysisPrompt, 
@@ -46,12 +46,14 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
         ]);
         const finalPrompt = visionResult.response.text();
 
-        // 2. FAL.AI ÇAĞRISI (Yüksek Sadakat Parametresi)
+        // 2. FAL.AI ÇAĞRISI (Ücretli Katman Avantajıyla En Yüksek Kalite)
         const result = await fal.subscribe("fal-ai/qwen-image-edit", {
             input: {
                 image_url: base64Image,
                 prompt: finalPrompt,
-                strength: 0.15 // Sadakati %99'a çekmek için 0.25'ten 0.15'e indirildi
+                strength: 0.18, // Gerçekçilik ve stil dengesi için 0.15'ten 0.18'e çok hafif yükseltildi
+                guidance_scale: 7.5, // Prompt'a daha sadık kalması için standart değerde tutuldu
+                num_inference_steps: 50 // Daha fazla detay işlemesi için (Ücretli katman avantajı)
             }
         });
 
@@ -59,7 +61,6 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
         if (!editedImageUrl) throw new Error("Görsel URL'si bulunamadı.");
 
         const response = await fetch(editedImageUrl);
-        if (!response.ok) throw new Error("Görsel indirilemedi.");
         const buffer = await response.buffer();
 
         res.set('Content-Type', 'image/png');
@@ -71,4 +72,4 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
     }
 });
 
-app.listen(port, () => console.log(`Yüksek Sadakatli Stüdyo 3.1 Yayında!`));
+app.listen(port, () => console.log(`Ultra-Gerçekçi Stüdyo 4.0 Yayında!`));

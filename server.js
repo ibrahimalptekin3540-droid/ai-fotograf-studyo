@@ -2,16 +2,22 @@ const express = require('express');
 const multer = require('multer');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const fal = require("@fal-ai/serverless-client");
-const fs = require('fs');
-const path = require('path');
 const cors = require('cors');
 const fetch = require('node-fetch');
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+// GÜVENLİK GÜNCELLEMESİ: Sadece 'public' klasörünü dışarı açar
+app.use(express.static('public'));
 app.use(cors());
-app.use(express.static('.')); 
-const upload = multer({ dest: 'uploads/' });
+
+// ALTIN KURAL 1: Fotoğrafları disk yerine RAM'de tutan yapılandırma
+const storage = multer.memoryStorage();
+const upload = multer({ 
+    storage: storage,
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB dosya boyutu sınırı
+});
 
 fal.config({ credentials: process.env.FAL_KEY });
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY);
@@ -20,10 +26,11 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
     try {
         if (!req.file || !req.body.prompt) return res.status(400).send("Veri eksik.");
 
-        const imageBuffer = fs.readFileSync(req.file.path);
-        const base64Image = `data:${req.file.mimetype};base64,${imageBuffer.toString("base64")}`;
+        // Fotoğraf verisini doğrudan RAM'den (buffer) alıyoruz
+        const imageBase64 = req.file.buffer.toString("base64");
+        const base64Image = `data:${req.file.mimetype};base64,${imageBase64}`;
 
-        // 1. GEMINI ANALİZİ (Yüz Temizleme ve Arka Plan Gerçekçiliği Odaklı)
+        // 1. GEMINI ANALİZİ (Stil Özelleştirme & Cilt Retouch)
         const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
         const analysisPrompt = `Target Style: ${req.body.prompt}. 
         
@@ -37,7 +44,7 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
 
         const visionResult = await geminiModel.generateContent([
             analysisPrompt, 
-            { inlineData: { data: imageBuffer.toString("base64"), mimeType: req.file.mimetype } }
+            { inlineData: { data: imageBase64, mimeType: req.file.mimetype } }
         ]);
         const finalPrompt = visionResult.response.text();
 
@@ -46,30 +53,30 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
             input: {
                 image_url: base64Image,
                 prompt: finalPrompt,
-                strength: 0.25 // Sadakati bozmadan stili uygulamak için ideal değer
+                strength: 0.25
             }
         });
 
-        // 3. URL YAKALAMA
+        // 3. SONUÇ YAKALAMA
         let editedImageUrl = result.image?.url || result.images?.[0]?.url;
         if (!editedImageUrl) throw new Error("Görsel URL'si bulunamadı.");
 
-        // 4. GÖRSELİ İNDİR VE GÖNDER
+        // 4. SONUCU RAM ÜZERİNDEN GÖNDERME (Diske yazma/silme yok)
         const response = await fetch(editedImageUrl);
+        if (!response.ok) throw new Error("Görsel indirilemedi.");
+        
         const buffer = await response.buffer();
-        const outputPath = `uploads/res_${Date.now()}.png`;
-        fs.writeFileSync(outputPath, buffer);
 
-        res.sendFile(path.resolve(outputPath), () => {
-            if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
-            if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
-        });
+        // Yanıt başlığını görsel olarak ayarla ve buffer'ı gönder
+        res.set('Content-Type', 'image/png');
+        res.send(buffer);
 
     } catch (error) {
         console.error("HATA:", error.message);
         res.status(500).send(`Sistem Hatası: ${error.message}`);
     }
+    // RAM kullanımı sayesinde 'finally' bloğunda disk silme komutuna gerek kalmadı!
 });
 
-if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
-app.listen(port, () => console.log(`Profesyonel AI Stüdyo 3.0 Yayında!`));
+// Artık 'uploads' klasörü oluşturmaya gerek yok
+app.listen(port, () => console.log(`Güvenli AI Stüdyo 3.0 (RAM-Only) Yayında!`));

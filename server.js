@@ -23,15 +23,17 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
         const imageBuffer = fs.readFileSync(req.file.path);
         const base64Image = `data:${req.file.mimetype};base64,${imageBuffer.toString("base64")}`;
 
-        // 1. GEMINI ANALİZİ (Geliştirilmiş Stil Özelleştirme)
+        // 1. GEMINI ANALİZİ (Yüz Temizleme ve Arka Plan Gerçekçiliği Odaklı)
         const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
         const analysisPrompt = `Target Style: ${req.body.prompt}. 
-        INSTRUCTIONS: 
-        1. Maintain identity 99% identical. 
-        2. Use extreme stylistic features unique to ${req.body.prompt} (lighting, brush strokes, textures). 
-        3. Add a thin aesthetic outline around subjects. 
-        4. If background location is provided, replace background seamlessly.
-        Return ONLY the optimized prompt text.`;
+        
+        STRICT INSTRUCTIONS: 
+        1. IDENTITY & SKIN: Maintain person's features 99% identical BUT provide professional skin retouching. Remove all facial moles, marks, spots, and blemishes. Output must have clear, smooth skin.
+        2. STYLE UNIQUENESS: Apply extreme, high-contrast stylistic features unique to ${req.body.prompt}. Use specific keywords for textures (e.g., thick impasto for oil, 8k octane render for 3D, vintage grain for 90s).
+        3. REALISTIC BACKGROUNDS: If a background location is requested, use photorealistic 8k environmental lighting, natural depth of field (bokeh), and global illumination. The person must look like they are physically there with realistic shadows and color matching. 
+        4. OUTLINE: Add a very thin, clean aesthetic outline around the subject.
+        
+        Return ONLY the optimized, highly descriptive prompt text.`;
 
         const visionResult = await geminiModel.generateContent([
             analysisPrompt, 
@@ -44,13 +46,15 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
             input: {
                 image_url: base64Image,
                 prompt: finalPrompt,
-                strength: 0.25 // Sadakat için düşük tutuldu
+                strength: 0.25 // Sadakati bozmadan stili uygulamak için ideal değer
             }
         });
 
+        // 3. URL YAKALAMA
         let editedImageUrl = result.image?.url || result.images?.[0]?.url;
         if (!editedImageUrl) throw new Error("Görsel URL'si bulunamadı.");
 
+        // 4. GÖRSELİ İNDİR VE GÖNDER
         const response = await fetch(editedImageUrl);
         const buffer = await response.buffer();
         const outputPath = `uploads/res_${Date.now()}.png`;
@@ -68,4 +72,4 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
 });
 
 if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
-app.listen(port, () => console.log(`Stüdyo 2.0 - 24 Stil Yayında!`));
+app.listen(port, () => console.log(`Profesyonel AI Stüdyo 3.0 Yayında!`));

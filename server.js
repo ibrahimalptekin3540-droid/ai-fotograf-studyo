@@ -13,20 +13,26 @@ app.use(cors());
 app.use(express.static('.')); 
 const upload = multer({ dest: 'uploads/' });
 
-// API YAPILANDIRMASI
 fal.config({ credentials: process.env.FAL_KEY });
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY);
 
 app.post('/api/process', upload.single('image'), async (req, res) => {
     try {
-        if (!req.file || !req.body.prompt) return res.status(400).send("Dosya eksik.");
+        if (!req.file || !req.body.prompt) return res.status(400).send("Veri eksik.");
 
         const imageBuffer = fs.readFileSync(req.file.path);
         const base64Image = `data:${req.file.mimetype};base64,${imageBuffer.toString("base64")}`;
 
-        // 1. GEMINI ANALİZİ (%99 Yüz Sadakati)
+        // 1. GEMINI ANALİZİ (Geliştirilmiş Stil Özelleştirme)
         const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); 
-        const analysisPrompt = `Target Style: ${req.body.prompt}. Command: Maintain identity 99% identical. Return only prompt text.`;
+        const analysisPrompt = `Target Style: ${req.body.prompt}. 
+        INSTRUCTIONS: 
+        1. Maintain identity 99% identical. 
+        2. Use extreme stylistic features unique to ${req.body.prompt} (lighting, brush strokes, textures). 
+        3. Add a thin aesthetic outline around subjects. 
+        4. If background location is provided, replace background seamlessly.
+        Return ONLY the optimized prompt text.`;
+
         const visionResult = await geminiModel.generateContent([
             analysisPrompt, 
             { inlineData: { data: imageBuffer.toString("base64"), mimeType: req.file.mimetype } }
@@ -34,29 +40,17 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
         const finalPrompt = visionResult.response.text();
 
         // 2. FAL.AI ÇAĞRISI
-        console.log("Fal.ai işliyor...");
         const result = await fal.subscribe("fal-ai/qwen-image-edit", {
             input: {
                 image_url: base64Image,
                 prompt: finalPrompt,
-                strength: 0.25
+                strength: 0.25 // Sadakat için düşük tutuldu
             }
         });
 
-        // 3. KRİTİK DÜZELTME: URL'yi her iki formatta da ara
-        let editedImageUrl = null;
-        if (result.image && result.image.url) {
-            editedImageUrl = result.image.url;
-        } else if (result.images && result.images[0] && result.images[0].url) {
-            editedImageUrl = result.images[0].url;
-        }
+        let editedImageUrl = result.image?.url || result.images?.[0]?.url;
+        if (!editedImageUrl) throw new Error("Görsel URL'si bulunamadı.");
 
-        if (!editedImageUrl) {
-            console.error("API Yanıtı Beklenmedik:", result);
-            throw new Error("Görsel URL'si bulunamadı.");
-        }
-
-        // 4. GÖRSELİ İNDİR VE GÖNDER
         const response = await fetch(editedImageUrl);
         const buffer = await response.buffer();
         const outputPath = `uploads/res_${Date.now()}.png`;
@@ -68,10 +62,10 @@ app.post('/api/process', upload.single('image'), async (req, res) => {
         });
 
     } catch (error) {
-        console.error("HATA DETAYI:", error.message);
+        console.error("HATA:", error.message);
         res.status(500).send(`Sistem Hatası: ${error.message}`);
     }
 });
 
 if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
-app.listen(port, () => console.log(`Profesyonel Stüdyo Yayında!`));
+app.listen(port, () => console.log(`Stüdyo 2.0 - 24 Stil Yayında!`));
